@@ -2,7 +2,7 @@ package ru.clevertec.jsonisator.model;
 
 import lombok.Data;
 
-import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -12,7 +12,7 @@ public class Order {
 
     private UUID id;
     private List<Product> products = new ArrayList<>();
-    private LocalDate createdDate;
+    private OffsetDateTime createdDate;
 
     public void addProduct(Product product) {
         products.add(product);

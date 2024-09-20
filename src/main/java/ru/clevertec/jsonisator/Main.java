@@ -12,13 +12,14 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class Main {
     public static void main(String[] args) {
-//        write();
-        test();
+        write();
+//        test();
     }
 
     public static void write() {
@@ -40,7 +41,7 @@ public class Main {
 
         Order order = new Order();
         order.setId(UUID.randomUUID());
-        order.setCreatedDate(LocalDate.now());
+        order.setCreatedDate(OffsetDateTime.now());
         order.addProduct(product);
         order.addProduct(product2);
 

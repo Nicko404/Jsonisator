@@ -6,7 +6,9 @@ import lombok.RequiredArgsConstructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -85,7 +87,7 @@ public class JsonParser {
         int start = json.indexOf("[");
         int end = json.lastIndexOf("]");
 
-        if (end == -1) json = json.substring(start + 1);
+        if (end == -1) json = json.substring(start + 1).trim();
         else {
             int begin = json.indexOf("[");
             int en = json.lastIndexOf("]");
@@ -93,19 +95,26 @@ public class JsonParser {
             else json = json.substring(json.indexOf("[") + 1, json.lastIndexOf("]")).trim();
         }
 
+        String[] strings = collectionSplit(json);
 
-        if (json.contains("{")) {
-            String[] split = json.split("},");
-            for (int i = 0; i < split.length; i++) {
-                split[i] = split[i].trim();
-                split[i] = addEnd(split[i]);
-                if (!split[i].endsWith("}")) {
-                    split[i] = split[i] + "\n}";
+        if (Arrays.stream(strings).anyMatch(s -> s.contains("["))) {
+            result.add(parseObject(json, clazz));
+        } else {
+            if (json.contains("{")) {
+                String[] split = json.split("},");
+                for (int i = 0; i < split.length; i++) {
+                    split[i] = split[i].trim();
+                    split[i] = addEnd(split[i]);
+                    if (!split[i].endsWith("}")) {
+                        split[i] = split[i] + "\n}";
+                    }
+                    Object o = parseObject(split[i], clazz);
+                    result.add(o);
                 }
-                Object o = parseObject(split[i], clazz);
-                result.add(o);
             }
+
         }
+
         return result;
     }
 
@@ -154,16 +163,32 @@ public class JsonParser {
         Object result = null;
         if (clazz.getSimpleName().equals("LocalDate")) {
             result = LocalDate.parse(value.toString());
+        } else if (clazz.getSimpleName().equals("OffsetDateTime")) {
+            result = OffsetDateTime.parse(value.toString());
         }
         return result;
     }
 
     private Node lineToNode(String line) {
         Node node = new Node();
+        if (isDateLine(line)) {
+            System.out.println();
+            String key = line.substring(0, line.indexOf(":")).replace("\"", "").trim();
+            String value = line.substring(line.indexOf(":") + 1).replace("\"", "").trim();
+            node.key = key;
+            node.value = value;
+            return node;
+        }
         String[] parts = line.split(":");
         node.key = parts[0].trim().replaceAll("\"", "");
         node.value = parts[1].trim().replaceAll("\"", "");
         return node;
+    }
+
+    private boolean isDateLine(String line) {
+        Pattern pattern = Pattern.compile("\"[\\d-]*T\\d*:\\d*:\\d*.\\d*\\+\\d{2}:\\d{2}\"");
+        Matcher matcher = pattern.matcher(line);
+        return matcher.find();
     }
 
     private Object getInstanceOfClass(Class<?> clazz) {
@@ -215,6 +240,19 @@ public class JsonParser {
 
     private boolean isMap(String className) {
         return className.equals("Map");
+    }
+
+    private String[] collectionSplit(String json) {
+        Pattern pattern = Pattern.compile("\\[[\\s\\D\\d]*]");
+        Matcher matcher = pattern.matcher(json);
+
+        if (matcher.find()) {
+            String group = matcher.group();
+            group = group.substring(group.indexOf("[") + 1);
+            String s = json.replace(group, "");
+            return s.split(",");
+        }
+        return json.split(",");
     }
 
     private String[] split(String json) {
