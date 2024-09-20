@@ -6,7 +6,9 @@ import lombok.RequiredArgsConstructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.OffsetTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -22,50 +24,33 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class JsonParser {
 
-    public Object parseObject(String json, Class<?> clazz) {
+    public <T> T parseObject(String json, Class<T> clazz) {
         Map<String, Object> nodes = new HashMap<>();
         Object instance = getInstanceOfClass(clazz);
 
-        int start = json.indexOf("{");
-        int end = json.lastIndexOf("}");
+        int documentStart = json.indexOf("{");
+        int documentEnd = json.lastIndexOf("}");
 
-        json = json.substring(start + 1, end).trim();
+        json = json.substring(documentStart + 1, documentEnd).trim();
 
-        String[] lines = split(json);
+        String[] lines = splitByFields(json);
+
+        for (String line : lines) {
+            if (isField(line)) {
+                Node node = createNodeFromLine(line);
+                nodes.put(node.key, node.value);
+
+            } else if (isCollection(line)) {
+                Node node = createNodeFromCollection(json, line, clazz);
+                nodes.put(node.key, node.value);
+
+            } else if (isObject(line)) {
+                Node node = createNodeFromObject(json, line, clazz);
+                nodes.put(node.key, node.value);
+            }
+        }
 
         try {
-            for (String line : lines) {
-                if (isField(line)) {
-                    Node node = lineToNode(line);
-                    nodes.put(node.key, node.value);
-                } else if (isCollection(line)) {
-
-                    String key = line.split(":")[0].trim().replaceAll("\"", "");
-                    Class<?> type = clazz.getDeclaredField(key).getType();
-                    String collectionName = type.getSimpleName();
-
-                    String t = clazz.getDeclaredField(key).getGenericType().toString();
-                    Class<?> genericClass = selectGeneric(t);
-                    Collection<Object> value = parseCollection(json, genericClass, collectionName);
-                    nodes.put(key, value);
-
-                } else if (isObject(line)) {
-                    String key = line.split(":")[0].trim().replaceAll("\"", "");
-                    Class<?> type = clazz.getDeclaredField(key).getType();
-
-                    if (isMap(type.getSimpleName())) {
-                        String t = clazz.getDeclaredField(key).getGenericType().toString();
-                        Class<?>[] classes = selectGenericFromMap(t);
-
-                        Map<Object, Object> value = parseMap(json, classes);
-                        nodes.put(key, value);
-                    } else {
-                        Object value = parseObject(json, type);
-                        nodes.put(key, value);
-                    }
-                }
-            }
-
             Set<String> keys = nodes.keySet();
             for (String key : keys) {
                 Field field = clazz.getDeclaredField(key);
@@ -74,7 +59,7 @@ public class JsonParser {
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
-        return instance;
+        return (T) instance;
     }
 
     private Collection<Object> parseCollection(String json, Class<?> clazz, String collectionName) {
@@ -101,29 +86,27 @@ public class JsonParser {
             result.add(parseObject(json, clazz));
         } else {
             if (json.contains("{")) {
-                String[] split = json.split("},");
-                for (int i = 0; i < split.length; i++) {
-                    split[i] = split[i].trim();
-                    split[i] = addEnd(split[i]);
-                    if (!split[i].endsWith("}")) {
-                        split[i] = split[i] + "\n}";
+                String[] objects = json.split("},");
+                for (int i = 0; i < objects.length; i++) {
+                    objects[i] = objects[i].trim();
+                    objects[i] = addParenthesis(objects[i]);
+                    if (!objects[i].endsWith("}")) {
+                        objects[i] = objects[i] + "\n}";
                     }
-                    Object o = parseObject(split[i], clazz);
-                    result.add(o);
+                    result.add(parseObject(objects[i], clazz));
                 }
             }
-
         }
 
         return result;
     }
 
-    public Map<Object, Object> parseMap(String json, Class<?>[] classes) {
+    private Map<Object, Object> parseMap(String json, Class<?>[] classes) {
         Map<Object, Object> result = new HashMap<>();
         json = json.substring(json.indexOf("{") + 1, json.lastIndexOf("}"));
         String[] lines = json.split(",");
         for (String line : lines) {
-            Node node = lineToNode(line);
+            Node node = createNodeFromLine(line);
             Object key = createObject(node.key, classes[0]);
             Object value = createObject(node.value.toString(), classes[1]);
             result.put(key, value);
@@ -160,29 +143,68 @@ public class JsonParser {
     }
 
     private Object createDate(Object value, Class<?> clazz) {
-        Object result = null;
-        if (clazz.getSimpleName().equals("LocalDate")) {
-            result = LocalDate.parse(value.toString());
-        } else if (clazz.getSimpleName().equals("OffsetDateTime")) {
-            result = OffsetDateTime.parse(value.toString());
-        }
-        return result;
+        return switch (clazz.getSimpleName()) {
+            case "LocalDate" -> LocalDate.parse(value.toString());
+            case "LocalDateTime" -> LocalDateTime.parse(value.toString());
+            case "OffsetTime" -> OffsetTime.parse(value.toString());
+            case "OffsetDateTime" -> OffsetDateTime.parse(value.toString());
+            default -> null;
+        };
     }
 
-    private Node lineToNode(String line) {
+    private Node createNodeFromLine(String line) {
         Node node = new Node();
         if (isDateLine(line)) {
-            System.out.println();
-            String key = line.substring(0, line.indexOf(":")).replace("\"", "").trim();
-            String value = line.substring(line.indexOf(":") + 1).replace("\"", "").trim();
-            node.key = key;
-            node.value = value;
+            node.key = line.substring(0, line.indexOf(":")).replace("\"", "").trim();
+            node.value = line.substring(line.indexOf(":") + 1).replace("\"", "").trim();
             return node;
         }
         String[] parts = line.split(":");
         node.key = parts[0].trim().replaceAll("\"", "");
         node.value = parts[1].trim().replaceAll("\"", "");
         return node;
+    }
+
+    private Node createNodeFromCollection(String json, String line, Class<?> clazz) {
+        try {
+            String key = line.split(":")[0].trim().replaceAll("\"", "");
+            Class<?> type = clazz.getDeclaredField(key).getType();
+            String collectionName = type.getSimpleName();
+
+            String t = clazz.getDeclaredField(key).getGenericType().toString();
+            Class<?> genericClass = selectGeneric(t);
+            Collection<Object> value = parseCollection(json, genericClass, collectionName);
+
+            Node node = new Node();
+            node.key = key;
+            node.value = value;
+            return node;
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Node createNodeFromObject(String json, String line, Class<?> clazz) {
+        try {
+            Node node = new Node();
+            String key = line.split(":")[0].trim().replaceAll("\"", "");
+            Class<?> type = clazz.getDeclaredField(key).getType();
+
+            node.key = key;
+
+            if (isMap(type.getSimpleName())) {
+                String t = clazz.getDeclaredField(key).getGenericType().toString();
+                Class<?>[] classes = selectGenericFromMap(t);
+
+                node.value = parseMap(json, classes);
+            } else {
+                node.value = parseObject(json, clazz);
+            }
+            return node;
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     private boolean isDateLine(String line) {
@@ -255,7 +277,7 @@ public class JsonParser {
         return json.split(",");
     }
 
-    private String[] split(String json) {
+    private String[] splitByFields(String json) {
         Pattern pattern = Pattern.compile("\\{[\\s\\D\\d]*}");
         Matcher matcher = pattern.matcher(json);
 
@@ -291,7 +313,7 @@ public class JsonParser {
         return result;
     }
 
-    private String addEnd(String line) {
+    private String addParenthesis(String line) {
 
         int openCount = 0;
         int closeCount = 0;

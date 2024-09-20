@@ -3,8 +3,7 @@ package ru.clevertec.jsonisator.model;
 import lombok.Data;
 
 @Data
-public class Model {
+public class InnerModel {
 
     private String name;
-    private InnerModel innerModel;
 }

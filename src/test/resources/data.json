@@ -1,0 +1,32 @@
+{
+  "id": "5d3d62db-17f9-49b9-8400-fcf86c5f32f3",
+  "firstName": "first name",
+  "lastName": "last name",
+  "birthDate": "2004-09-20",
+  "orders": [
+    {
+      "id": "cdb733e4-97af-45fc-969e-49f244d74130",
+      "products": [
+        {
+          "id": "c70df194-1ac0-4f85-9db4-36ec138364c8",
+          "name": "product name",
+          "price": 12.3,
+          "stock": {
+            "1e376721-8590-43f3-af66-376d1676f230": 54,
+            "d536d0a6-e180-491f-a16d-1727f4062f29": 23
+          }
+        },
+        {
+          "id": "af55f0f2-68cf-471d-8653-92e7c1b1aeab",
+          "name": "product 2",
+          "price": 32.1,
+          "stock": {
+            "f7971024-68b0-4a15-93b7-026c194d874d": 54,
+            "e737f8f7-d0e2-495a-bb3d-1759e4d4dee7": 23
+          }
+        }
+      ],
+      "createdDate": "2024-09-20T19:18:21.824523406+03:00"
+    }
+  ]
+}

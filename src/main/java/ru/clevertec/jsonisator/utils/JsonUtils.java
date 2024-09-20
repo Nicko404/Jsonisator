@@ -39,14 +39,12 @@ public class JsonUtils {
         return CLASS_TYPE_OF_DATES.contains(classType);
     }
 
-    public static String tabulation(int tabulationCount) {
-        return " ".repeat(Math.max(0, tabulationCount));
+    public static boolean isCustomObject(String classType, Class<?> clazz) {
+        return !(isDigit(classType) || isCollection(classType) || isMap(classType) || isDate(classType) ||
+                isBigDigit(classType) || clazz.isPrimitive() || classType.equals("String"));
     }
 
-    public static String selectGenericFromClassName(String className) {
-        return className.substring(
-                className.indexOf("<") + 1,
-                className.indexOf(">")
-        );
+    public static String tabulation(int tabulationCount) {
+        return " ".repeat(Math.max(0, tabulationCount));
     }
 }

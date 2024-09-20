@@ -3,6 +3,7 @@ package ru.clevertec.jsonisator;
 import lombok.SneakyThrows;
 import ru.clevertec.jsonisator.mapper.JsonMapper;
 import ru.clevertec.jsonisator.model.Customer;
+import ru.clevertec.jsonisator.model.InnerModel;
 import ru.clevertec.jsonisator.model.Model;
 import ru.clevertec.jsonisator.model.Order;
 import ru.clevertec.jsonisator.model.Product;
@@ -18,8 +19,8 @@ import java.util.stream.Collectors;
 
 public class Main {
     public static void main(String[] args) {
-        write();
-//        test();
+//        write();
+        test();
     }
 
     public static void write() {
@@ -60,10 +61,20 @@ public class Main {
 
     @SneakyThrows
     public static void test() {
-        BufferedReader reader = new BufferedReader(new FileReader("src/main/resources/result.json"));
-        String json = reader.lines().collect(Collectors.joining("\n"));
-        JsonParser parser = new JsonParser();
-        Object object = parser.parseObject(json, Customer.class);
-        System.out.println(object);
+        InnerModel innerModel = new InnerModel();
+        innerModel.setName("Inner model name");
+        Model model = new Model();
+        model.setName("Model name");
+        model.setInnerModel(innerModel);
+
+        JsonMapper<Model> mapper = new JsonMapper<>("src/main/resources/data.json", false);
+        mapper.write(model);
+        mapper.flush();
+        mapper.close();
+//        BufferedReader reader = new BufferedReader(new FileReader("src/main/resources/result.json"));
+//        String json = reader.lines().collect(Collectors.joining("\n"));
+//        JsonParser parser = new JsonParser();
+//        Object object = parser.parseObject(json, Customer.class);
+//        System.out.println(object);
     }
 }
