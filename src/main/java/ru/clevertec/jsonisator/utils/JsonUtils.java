@@ -41,7 +41,7 @@ public class JsonUtils {
 
     public static boolean isCustomObject(String classType, Class<?> clazz) {
         return !(isDigit(classType) || isCollection(classType) || isMap(classType) || isDate(classType) ||
-                isBigDigit(classType) || clazz.isPrimitive() || classType.equals("String"));
+                isBigDigit(classType) || clazz.isPrimitive() || classType.equals("String") || classType.equals("UUID"));
     }
 
     public static String tabulation(int tabulationCount) {

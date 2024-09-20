@@ -26,10 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class JsonParserTest {
 
     private Customer customer;
-    private ObjectMapper mapper;
-    private JsonMapper<Customer> jsonMapper;
-    private JsonParser jsonParser;
-    private final String PATH = "src/test/resources/data.json";
+    private ObjectMapper jacksonMapper;
+    private JsonMapper myMapper;
 
     @BeforeEach
     public void init() {
@@ -60,41 +58,34 @@ class JsonParserTest {
         customer.setBirthDate(LocalDate.now().minusYears(20));
         customer.addOrder(order);
 
-        mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd"));
+        jacksonMapper = new ObjectMapper();
+        jacksonMapper.registerModule(new JavaTimeModule());
+        jacksonMapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd"));
+        jacksonMapper.disable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE);
 
-        jsonMapper = new JsonMapper<>(PATH, false);
-        jsonParser = new JsonParser();
+        myMapper = new JsonMapper();
     }
 
     @Test
     public void whenParseToObject() throws IOException {
-        String jacksonJson = mapper.writeValueAsString(customer);
+        String jacksonJson = jacksonMapper.writeValueAsString(customer);
 
-        jsonMapper.write(customer);
-        jsonMapper.flush();
-        jsonMapper.close();
+        String myJson = myMapper.objectToJson(customer);
 
-        BufferedReader reader = new BufferedReader(new FileReader(PATH));
-        
-        String myJson = reader.lines().collect(Collectors.joining());
-
-        reader.close();
-
-        assertEquals(mapper.readTree(jacksonJson), mapper.readTree(myJson));
+        assertEquals(jacksonMapper.readTree(jacksonJson), jacksonMapper.readTree(myJson));
     }
 
     @Test
     public void whenParseToJson() throws IOException {
-        mapper.disable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE);
-        BufferedReader reader = new BufferedReader(new FileReader(PATH));
+
+        String path = "src/test/resources/data.json";
+        BufferedReader reader = new BufferedReader(new FileReader(path));
         String json = reader.lines().collect(Collectors.joining());
 
         reader.close();
 
-        Customer jacksonCustomer = mapper.readValue(json, Customer.class);
-        Customer myCustomer = jsonParser.parseObject(json, Customer.class);
+        Customer jacksonCustomer = jacksonMapper.readValue(json, Customer.class);
+        Customer myCustomer = myMapper.parseObject(json, Customer.class);
 
         assertEquals(jacksonCustomer, myCustomer);
     }
